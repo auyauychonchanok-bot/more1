@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ท่องโลกมหาสมุทร: ผจญภัยเปรียบเทียบจำนวน < , > , =</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Sarabun', 'Prompt', sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020c1b;
+            color: #fff;
+        }
+
+        /* Container หลัก */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1280px;
+            max-height: 720px;
+            margin: 0 auto;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+            background: #001220;
+        }
+
+        /* พื้นหลังเกม */
+        .bg-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease-in-out;
+            transform-origin: center center;
+        }
+
+        /* ภาพที่ 1 (a1.jpg) เป็นภาพหน้าแรก */
+        #bg-start {
+            background-image: url('./a1.jpg'), url('./a1.jpeg'), url('./a1_2.jpeg');
+            z-index: 1;
+        }
+
+        /* ภาพที่ 2 (a2.jpg) เป็นภาพพื้นหลังของเกม */
+        #bg-play {
+            background-image: url('./a2.jpg'), url('./a2.jpeg'), url('./a2_2.jpeg');
+            z-index: 0;
+            opacity: 0;
+        }
+
+        /* สถานะ Zoom */
+        .zoom-out { transform: scale(1) !important; }
+        .zoom-in { transform: scale(1.08) !important; }
+
+        /* Ambient Light Effects */
+        .caustics {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.12) 0%, transparent 70%);
+            animation: causticsPulse 4s infinite alternate ease-in-out;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes causticsPulse {
+            0% { opacity: 0.2; transform: scale(1); }
+            100% { opacity: 0.6; transform: scale(1.08); }
+        }
+
+        /* Canvas FX */
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 4;
+            pointer-events: none;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* ปุ่มสลับเสียง */
+        #audio-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 100;
+            background: rgba(0, 30, 60, 0.75);
+            border: 2px solid #00f3ff;
+            color: #00f3ff;
+            font-size: 22px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+            transition: all 0.3s;
+        }
+        #audio-btn:hover {
+            transform: scale(1.1);
+            background: rgba(0, 243, 255, 0.3);
+        }
+
+        /* หน้าแรก Start Screen UI */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+
+        .title-box {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(0, 15, 35, 0.65);
+            padding: 25px 45px;
+            border-radius: 25px;
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(0, 243, 255, 0.4);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .title-box h1 {
+            font-size: 3rem;
+            color: #ffffff;
+            letter-spacing: 2px;
+            background: linear-gradient(180deg, #fff, #70e4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .title-box h2 {
+            font-size: 1.5rem;
+            color: #00f3ff;
+            margin-top: 10px;
+        }
+
+        .btn-glow {
+            padding: 16px 50px;
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #0055ff, #00e1ff);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 225, 255, 0.6);
+            transition: all 0.3s ease;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .btn-glow:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 40px rgba(0, 225, 255, 0.9);
+        }
+
+        /* Map Screen & Nodes */
+        #map-container {
+            position: absolute;
+            width: 100%; height: 100%;
+            top: 0; left: 0;
+            z-index: 5;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .map-node {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(0, 20, 40, 0.9);
+            border: 3px solid #0055ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #888;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s ease;
+            z-index: 6;
+        }
+
+        .map-node.active {
+            border-color: #00f3ff;
+            color: #fff;
+            box-shadow: 0 0 25px #00f3ff;
+            background: #0055ff;
+            animation: pulseNode 1.5s infinite alternate;
+        }
+
+        /* สถานะ เมื่อตอบถูก (✓) */
+        .map-node.node-correct {
+            border-color: #00ff88;
+            background: #00aa55;
+            color: #fff;
+            font-weight: 900;
+            box-shadow: 0 0 20px #00ff88;
+            font-size: 1.5rem;
+        }
+
+        /* สถานะ เมื่อตอบผิด (✗) */
+        .map-node.node-wrong {
+            border-color: #ff3355;
+            background: #aa0022;
+            color: #fff;
+            font-weight: 900;
+            box-shadow: 0 0 20px #ff3355;
+            font-size: 1.5rem;
+        }
+
+        .map-node.boss {
+            width: 65px; height: 65px;
+            border-color: #ff0055;
+            background: rgba(80, 0, 20, 0.9);
+            color: #ff0055;
+            font-size: 1.3rem;
+        }
+
+        .map-node.boss.active {
+            border-color: #ff0055;
+            background: #ff0055;
+            color: #fff;
+            box-shadow: 0 0 35px #ff0055;
+        }
+
+        @keyframes pulseNode {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            100% { transform: translate(-50%, -50%) scale(1.25); }
+        }
+
+        /* ตัวละครนักดำน้ำ & Boss */
+        #player-diver {
+            position: absolute;
+            width: 60px; height: 60px;
+            background: radial-gradient(circle, #00f3ff, transparent 70%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: left 0.8s ease-in-out, top 0.8s ease-in-out;
+            z-index: 8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 34px;
+            filter: drop-shadow(0 0 12px #00f3ff);
+        }
+
+        #boss-avatar {
+            position: absolute;
+            right: 8%; top: 18%;
+            font-size: 95px;
+            z-index: 6;
+            display: none;
+            filter: drop-shadow(0 0 25px #ff0055);
+            animation: bossFloat 3s infinite ease-in-out;
+        }
+
+        @keyframes bossFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(-5deg); }
+        }
+
+        /* CENTER QUIZ UI */
+        #quiz-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 650px;
+            background: rgba(2, 18, 38, 0.93);
+            border: 3px solid #00f3ff;
+            border-radius: 25px;
+            padding: 30px 25px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.5), inset 0 0 20px rgba(0, 243, 255, 0.2);
+            z-index: 20;
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #70e4ff;
+            border-bottom: 2px solid rgba(0, 243, 255, 0.25);
+            padding-bottom: 10px;
+        }
+
+        .question-title {
+            text-align: center;
+            font-size: 1.3rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .question-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            background: rgba(0, 30, 60, 0.6);
+            padding: 15px;
+            border-radius: 18px;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+        }
+
+        .num-box {
+            font-size: 2.4rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .symbol-target {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #00f3ff;
+            background: rgba(0, 243, 255, 0.15);
+            border: 2px dashed #00f3ff;
+            padding: 5px 20px;
+            border-radius: 12px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .options-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .option-btn {
+            flex: 1;
+            background: linear-gradient(180deg, rgba(0, 85, 255, 0.6), rgba(0, 40, 120, 0.8));
+            border: 2px solid #00f3ff;
+            color: #fff;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .option-btn:hover {
+            background: linear-gradient(180deg, #00f3ff, #0055ff);
+            color: #fff;
+            transform: translateY(-4px);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.8);
+        }
+
+        .option-btn.btn-text {
+            font-size: 1.5rem;
+        }
+
+        /* Result Screen UI */
+        #result-screen {
+            display: none;
+            background: rgba(0, 10, 25, 0.95);
+        }
+
+        .result-card {
+            background: rgba(0, 30, 60, 0.9);
+            border: 3px solid #00f3ff;
+            border-radius: 25px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.4);
+            max-width: 450px;
+            width: 85%;
+        }
+
+        .result-score {
+            font-size: 3.5rem;
+            color: #00f3ff;
+            margin: 20px 0;
+            text-shadow: 0 0 20px #00f3ff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Background Layers (a1.jpg หน้าแรก, a2.jpg ในเกม) -->
+        <div id="bg-start" class="bg-screen"></div>
+        <div id="bg-play" class="bg-screen"></div>
+        <div class="caustics"></div>
+
+        <!-- Canvas FX -->
+        <canvas id="fx-canvas"></canvas>
+
+        <!-- Audio Control -->
+        <button id="audio-btn" onclick="toggleAudio()">🔊</button>
+
+        <!-- 1. Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="title-box">
+                <h1>ท่องโลกมหาสมุทร</h1>
+                <h2>ผจญภัยเปรียบเทียบจำนวน &lt; , &gt; , =</h2>
+            </div>
+            <button class="btn-glow" onclick="startGame()">เริ่มผจญภัย</button>
+        </div>
+
+        <!-- 2. Gameplay & Map Nodes Container -->
+        <div id="map-container"></div>
+        <div id="player-diver">🥽</div>
+        <div id="boss-avatar">🦈</div>
+
+        <!-- 3. Interactive Quiz UI -->
+        <div id="quiz-ui">
+            <div class="quiz-header">
+                <span id="stage-label">ด่านที่ 1/10</span>
+                <span id="score-label">คะแนน: 0</span>
+            </div>
+            
+            <div id="question-title" class="question-title">เลือกลูกศรเปรียบเทียบที่ถูกต้อง</div>
+            
+            <div class="question-display">
+                <div id="num-left" class="num-box">100</div>
+                <div id="symbol-target" class="symbol-target">?</div>
+                <div id="num-right" class="num-box">200</div>
+            </div>
+
+            <div id="options-container" class="options-grid"></div>
+        </div>
+
+        <!-- 4. Result Screen -->
+        <div id="result-screen" class="screen">
+            <div class="result-card">
+                <h1 id="result-title">สรุปผลการผจญภัย</h1>
+                <div id="result-score" class="result-score">0 / 10</div>
+                <p id="result-status" style="font-size: 1.2rem; margin-bottom: 25px;"></p>
+                <button class="btn-glow" onclick="resetGame()">เล่นอีกครั้ง</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================
+           1. QUESTION BANK
+           ========================================== */
+        const MASTER_QUESTION_BANK = [];
+        for (let i = 1; i <= 90; i++) {
+            let num1 = Math.floor(Math.random() * 900) + 100;
+            let num2 = Math.floor(Math.random() * 900) + 100;
+            
+            if (i % 2 === 0) {
+                let op = "=";
+                if (num1 > num2) op = ">";
+                else if (num1 < num2) op = "<";
+
+                MASTER_QUESTION_BANK.push({
+                    type: "fill_symbol",
+                    title: "เลือกเครื่องหมายที่ถูกต้อง",
+                    left: num1,
+                    symbol: "?",
+                    right: num2,
+                    options: [
+                        { text: ">", correct: op === ">" },
+                        { text: "<", correct: op === "<" },
+                        { text: "=", correct: op === "=" }
+                    ]
+                });
+            } else {
+                let symbolOptions = [">", "<", "="];
+                let randomSymbol = symbolOptions[Math.floor(Math.random() * 3)];
+                
+                let isActualCorrect = false;
+                if (randomSymbol === ">" && num1 > num2) isActualCorrect = true;
+                if (randomSymbol === "<" && num1 < num2) isActualCorrect = true;
+                if (randomSymbol === "=" && num1 === num2) isActualCorrect = true;
+
+                MASTER_QUESTION_BANK.push({
+                    type: "true_false",
+                    title: "ประโยคนี้ถูกต้องหรือไม่?",
+                    left: num1,
+                    symbol: randomSymbol,
+                    right: num2,
+                    options: [
+                        { text: "ถูกต้อง", correct: isActualCorrect, isText: true },
+                        { text: "ไม่ถูกต้อง", correct: !isActualCorrect, isText: true }
+                    ]
+                });
+            }
+        }
+
+        const MASTER_BOSS_BANK = [
+            {
+                type: "fill_symbol",
+                title: "🦈 บอสฉลาม: เติมเครื่องหมายที่ถูกต้อง",
+                left: 542,
+                symbol: "?",
+                right: 524,
+                options: [
+                    { text: ">", correct: true },
+                    { text: "<", correct: false },
+                    { text: "=", correct: false }
+                ]
+            },
+            {
+                type: "true_false",
+                title: "🦈 บอสฉลาม: ประโยคนี้ถูกต้องหรือไม่?",
+                left: "(800 + 30 + 5)",
+                symbol: "=",
+                right: 835,
+                options: [
+                    { text: "ถูกต้อง", correct: true, isText: true },
+                    { text: "ไม่ถูกต้อง", correct: false, isText: true }
+                ]
+            },
+            {
+                type: "fill_symbol",
+                title: "🦈 บอสฉลาม: เติมเครื่องหมายที่ถูกต้อง",
+                left: 999,
+                symbol: "?",
+                right: "1,000",
+                options: [
+                    { text: "<", correct: true },
+                    { text: ">", correct: false },
+                    { text: "=", correct: false }
+                ]
+            }
+        ];
+
+        /* ==========================================
+           2. AUDIO SYSTEM
+           ========================================== */
+        let audioCtx = null;
+        let isMuted = false;
+        let bgmInterval = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted || !audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.setValueAtTime(180, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'victory') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    g.gain.setValueAtTime(0.2, now + idx * 0.12);
+                    g.gain.linearRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
+                    o.start(now + idx * 0.12);
+                    o.stop(now + idx * 0.12 + 0.2);
+                });
+            }
+        }
+
+        function startBGM() {
+            if (bgmInterval || isMuted) return;
+            bgmInterval = setInterval(() => {
+                if (isMuted || !audioCtx) return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                const baseFreq = 300 + Math.random() * 200;
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq + 300, now + 0.15);
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }, 1800);
+        }
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            document.getElementById('audio-btn').innerText = isMuted ? '🔇' : '🔊';
+            if (!isMuted) {
+                initAudio();
+                startBGM();
+            }
+        }
+
+        /* ==========================================
+           3. GAME LOGIC & MAP SYSTEM
+           ========================================== */
+        let currentStage = 0;
+        let score = 0;
+        let activeQuestions = [];
+        let mapNodes = [];
+
+        const NODE_POSITIONS = [
+            { x: 10, y: 80 }, { x: 22, y: 65 }, { x: 30, y: 82 },
+            { x: 42, y: 60 }, { x: 50, y: 75 }, { x: 62, y: 55 },
+            { x: 70, y: 78 }, { x: 80, y: 50 }, { x: 85, y: 70 },
+            { x: 90, y: 30 }
+        ];
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initMapUI() {
+            const container = document.getElementById('map-container');
+            container.innerHTML = '';
+            mapNodes = [];
+
+            NODE_POSITIONS.forEach((pos, idx) => {
+                const node = document.createElement('div');
+                node.className = `map-node ${idx === 9 ? 'boss' : ''}`;
+                node.style.left = `${pos.x}%`;
+                node.style.top = `${pos.y}%`;
+                node.innerText = idx === 9 ? '👑' : (idx + 1);
+                container.appendChild(node);
+                mapNodes.push(node);
+            });
+
+            resizeCanvas();
+        }
+
+        function startGame() {
+            initAudio();
+            startBGM();
+            playSound('click');
+
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('bg-start').style.opacity = '0';
+                document.getElementById('bg-play').style.opacity = '1';
+            }, 500);
+
+            const shuffledNormal = shuffleArray(MASTER_QUESTION_BANK).slice(0, 9);
+            const shuffledBoss = shuffleArray(MASTER_BOSS_BANK).slice(0, 1);
+            activeQuestions = [...shuffledNormal, ...shuffledBoss];
+
+            currentStage = 0;
+            score = 0;
+            initMapUI();
+            
+            movePlayerToStage(0);
+            openQuizUI();
+        }
+
+        function movePlayerToStage(stageIdx) {
+            const diver = document.getElementById('player-diver');
+            const pos = NODE_POSITIONS[stageIdx];
+            diver.style.left = `${pos.x}%`;
+            diver.style.top = `${pos.y}%`;
+
+            mapNodes.forEach((node, idx) => {
+                node.classList.remove('active');
+                if (idx === stageIdx) node.classList.add('active');
+            });
+
+            const bossAvatar = document.getElementById('boss-avatar');
+            if (stageIdx === 9) {
+                bossAvatar.style.display = 'block';
+            } else {
+                bossAvatar.style.display = 'none';
+            }
+        }
+
+        function openQuizUI() {
+            document.getElementById('bg-play').className = 'bg-screen zoom-in';
+            document.getElementById('map-container').style.transform = 'scale(1.08)';
+            document.getElementById('fx-canvas').style.transform = 'scale(1.08)';
+
+            const qData = activeQuestions[currentStage];
+            document.getElementById('stage-label').innerText = `ด่านที่ ${currentStage + 1}/10 ${currentStage === 9 ? '(บอสฉลาม)' : ''}`;
+            document.getElementById('score-label').innerText = `คะแนน: ${score}`;
+            
+            document.getElementById('question-title').innerText = qData.title;
+            document.getElementById('num-left').innerText = qData.left;
+            document.getElementById('symbol-target').innerText = qData.symbol;
+            document.getElementById('num-right').innerText = qData.right;
+
+            const shuffledOpts = shuffleArray(qData.options);
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
+
+            shuffledOpts.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn ${opt.isText ? 'btn-text' : ''}`;
+                btn.innerText = opt.text;
+                btn.onclick = () => handleAnswer(opt.correct);
+                optsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quiz-ui').style.display = 'block';
+        }
+
+        function handleAnswer(isCorrect) {
+            // อัปเดตสัญลักษณ์ ถูก (✓) หรือ ผิด (✗) ที่ปุ่มด่านทันที
+            const currentNode = mapNodes[currentStage];
+            if (isCorrect) {
+                playSound('correct');
+                score++;
+                currentNode.innerText = '✓';
+                currentNode.className = `map-node node-correct ${currentStage === 9 ? 'boss' : ''}`;
+            } else {
+                playSound('wrong');
+                currentNode.innerText = '✗';
+                currentNode.className = `map-node node-wrong ${currentStage === 9 ? 'boss' : ''}`;
+            }
+
+            document.getElementById('quiz-ui').style.display = 'none';
+            currentStage++;
+
+            // ซูมแมปกลับอัตโนมัติ และย้ายตัวละครไปด่านถัดไปโดยไม่ต้องกดยืนยัน
+            document.getElementById('bg-play').className = 'bg-screen zoom-out';
+            document.getElementById('map-container').style.transform = 'scale(1)';
+            document.getElementById('fx-canvas').style.transform = 'scale(1)';
+
+            if (currentStage < 10) {
+                setTimeout(() => {
+                    movePlayerToStage(currentStage);
+                    // เปิดโจทย์ใหม่ทันทีหลังตัวละครเดินถึง
+                    setTimeout(() => {
+                        openQuizUI();
+                    }, 800);
+                }, 400);
+            } else {
+                setTimeout(() => {
+                    showResult();
+                }, 800);
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quiz-ui').style.display = 'none';
+
+            const resultScreen = document.getElementById('result-screen');
+            resultScreen.style.display = 'flex';
+
+            const scoreText = document.getElementById('result-score');
+            const statusText = document.getElementById('result-status');
+            const titleText = document.getElementById('result-title');
+
+            scoreText.innerText = `${score} / 10`;
+
+            if (score >= 7) {
+                playSound('victory');
+                titleText.innerText = "🎉 ชัยชนะใต้มหาสมุทร! 🎉";
+                statusText.innerText = "ยินดีด้วย! คุณผ่านเกณฑ์ผจญภัยและพิชิตบอสสำเร็จ!";
+                statusText.style.color = "#00ff88";
+                startFireworks();
+            } else {
+                titleText.innerText = "🌊 การผจญภัยยังไม่สิ้นสุด";
+                statusText.innerText = "คุณได้ไม่ถึง 7 คะแนน พยายามใหม่อีกครั้งนะ!";
+                statusText.style.color = "#ff5555";
+            }
+        }
+
+        function resetGame() {
+            playSound('click');
+            stopFireworks();
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('start-screen').style.opacity = '1';
+            document.getElementById('bg-start').style.opacity = '1';
+            document.getElementById('bg-play').style.opacity = '0';
+        }
+
+        /* ==========================================
+           4. CANVAS & GRAPHICS
+           ========================================== */
+        const canvas = document.getElementById('fx-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawMapPaths();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawMapPaths() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (mapNodes.length === 0 || document.getElementById('bg-play').style.opacity === '0') return;
+
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.6)';
+            ctx.setLineDash([8, 8]);
+
+            NODE_POSITIONS.forEach((pos, idx) => {
+                const x = (pos.x / 100) * canvas.width;
+                const y = (pos.y / 100) * canvas.height;
+                if (idx === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        /* Fireworks Effect */
+        let fireworks = [];
+        let fireworkAnimationId = null;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 3 + 2;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.alpha = 1;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.015;
+            }
+        }
+
+        function startFireworks() {
+            fireworks = [];
+            const colors = ['#00f3ff', '#00ff88', '#ff0055', '#ffcc00', '#ffffff'];
+            
+            const launch = () => {
+                if (document.getElementById('result-screen').style.display !== 'flex') return;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * (canvas.height * 0.5);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 35; i++) {
+                    fireworks.push(new Particle(x, y, color));
+                }
+            };
+
+            setInterval(launch, 400);
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                fireworks.forEach((p, idx) => {
+                    p.update();
+                    p.draw();
+                    if (p.alpha <= 0) fireworks.splice(idx, 1);
+                });
+                fireworkAnimationId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function stopFireworks() {
+            if (fireworkAnimationId) cancelAnimationFrame(fireworkAnimationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        document.body.addEventListener('click', () => {
+            initAudio();
+        }, { once: true });
+
+        window.onload = resizeCanvas;
+    </script>
+</body>
+</html>
