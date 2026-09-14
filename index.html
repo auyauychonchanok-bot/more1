@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ท่องโลกมหาสมุทร: ผจญภัยเปรียบเทียบจำนวน < , > , =</title>
+    <!-- โหลดฟอนต์น่ารัก 'Mali' จาก Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Mali', cursive, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020c1b;
+            color: #fff;
+        }
+
+        /* Container หลัก ล็อคขอบภาพแน่นหนา */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1280px;
+            max-height: 720px;
+            margin: 0 auto;
+            overflow: hidden; /* ล็อคขอบภาพทั้งหมด */
+            box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+            background: #001220;
+        }
+
+        /* โลโก้ผู้สร้างเกม (มุมซ้ายบน 50px แสดงทุกหน้า) */
+        #dev-logo {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            z-index: 9999; /* อยู่ชั้นบนสุดเสมอ */
+            pointer-events: none; /* ป้องกันการบังการกดปุ่ม UI อื่นๆ */
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+        }
+
+        /* ภาพพื้นหลังซูมเข้า-ออกอย่างสมูท (Smooth Breathing Zoom) */
+        .bg-screen {
+            position: absolute;
+            top: -5%; left: -5%;
+            width: 110%; height: 110%;
+            background-size: cover;
+            background-position: center;
+            transition: opacity 1s ease-in-out;
+            animation: smoothZoom 16s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes smoothZoom {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        #bg-start {
+            background-image: url('./a1.jpg'), url('./a1.jpeg'), url('./a1_2.jpeg');
+            z-index: 1;
+        }
+
+        #bg-play {
+            background-image: url('./a2.jpg'), url('./a2.jpeg'), url('./a2_2.jpeg');
+            z-index: 0;
+            opacity: 0;
+        }
+
+        /* เลเยอร์ปลาว่ายน้ำบนพื้นหลัง (Alive Ocean background) */
+        #fish-bg-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 3;
+            overflow: hidden;
+        }
+
+        .bg-fish {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.75;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            white-space: nowrap;
+        }
+
+        /* เอฟเฟกต์แสงใต้น้ำ */
+        .caustics {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.12) 0%, transparent 70%);
+            animation: causticsPulse 4s infinite alternate ease-in-out;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes causticsPulse {
+            0% { opacity: 0.2; }
+            100% { opacity: 0.6; }
+        }
+
+        /* Canvas FX */
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* ปุ่มสลับเสียง */
+        #audio-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #00f3ff;
+            color: #00f3ff;
+            font-size: 22px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+            transition: all 0.3s;
+        }
+
+        /* UI หน้าแรก Start Screen */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+
+        .title-box {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(2, 18, 38, 0.75);
+            padding: 30px 50px;
+            border-radius: 35px;
+            backdrop-filter: blur(10px);
+            border: 3px solid rgba(0, 243, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .title-box h1 {
+            font-size: 3.2rem;
+            color: #ffffff;
+            letter-spacing: 2px;
+            background: linear-gradient(180deg, #fff, #70e4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+
+        .title-box h2 {
+            font-size: 1.6rem;
+            color: #ffd700;
+            margin-top: 10px;
+        }
+
+        .btn-glow {
+            padding: 18px 55px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #0077ff, #00e1ff);
+            border: 3px solid #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 225, 255, 0.7);
+            transition: all 0.3s ease;
+        }
+
+        .btn-glow:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 45px rgba(0, 225, 255, 1);
+        }
+
+        /* Map Screen & Nodes */
+        #map-container {
+            position: absolute;
+            width: 100%; height: 100%;
+            top: 0; left: 0;
+            z-index: 5;
+        }
+
+        .map-node {
+            position: absolute;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(0, 25, 50, 0.9);
+            border: 3px solid #0066ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.3rem;
+            color: #aaa;
+            transform: translate(-50%, -50%);
+            transition: all 0.4s ease;
+            z-index: 6;
+        }
+
+        .map-node.active {
+            border-color: #00f3ff;
+            color: #fff;
+            box-shadow: 0 0 25px #00f3ff;
+            background: #0066ff;
+            animation: pulseNode 1.5s infinite alternate;
+        }
+
+        .map-node.node-correct {
+            border-color: #00ff88;
+            background: #00aa55;
+            color: #fff;
+            box-shadow: 0 0 20px #00ff88;
+            font-size: 1.6rem;
+        }
+
+        .map-node.node-wrong {
+            border-color: #ff3355;
+            background: #aa0022;
+            color: #fff;
+            box-shadow: 0 0 20px #ff3355;
+            font-size: 1.6rem;
+        }
+
+        .map-node.boss {
+            width: 70px; height: 70px;
+            border-color: #ff0055;
+            background: rgba(80, 0, 20, 0.9);
+            color: #ff0055;
+            font-size: 1.5rem;
+        }
+
+        @keyframes pulseNode {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            100% { transform: translate(-50%, -50%) scale(1.25); }
+        }
+
+        /* ตัวละครนักดำน้ำ & Boss */
+        #player-diver {
+            position: absolute;
+            width: 65px; height: 65px;
+            background: radial-gradient(circle, #00f3ff, transparent 70%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: left 0.8s ease-in-out, top 0.8s ease-in-out;
+            z-index: 8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 38px;
+            filter: drop-shadow(0 0 12px #00f3ff);
+        }
+
+        #boss-avatar {
+            position: absolute;
+            right: 8%; top: 18%;
+            font-size: 95px;
+            z-index: 6;
+            display: none;
+            filter: drop-shadow(0 0 25px #ff0055);
+            animation: bossFloat 3s infinite ease-in-out;
+        }
+
+        @keyframes bossFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(-5deg); }
+        }
+
+        /* CENTER QUIZ UI */
+        #quiz-ui {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 650px;
+            background: rgba(2, 18, 38, 0.93);
+            border: 3px solid #00f3ff;
+            border-radius: 30px;
+            padding: 30px 25px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.5), inset 0 0 20px rgba(0, 243, 255, 0.2);
+            z-index: 20;
+            display: none;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #70e4ff;
+            border-bottom: 2px solid rgba(0, 243, 255, 0.25);
+            padding-bottom: 10px;
+        }
+
+        .question-title {
+            text-align: center;
+            font-size: 1.4rem;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .question-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            background: rgba(0, 30, 60, 0.6);
+            padding: 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(0, 243, 255, 0.2);
+        }
+
+        .num-box {
+            font-size: 2.6rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .symbol-target {
+            font-size: 2.4rem;
+            font-weight: bold;
+            color: #00f3ff;
+            background: rgba(0, 243, 255, 0.15);
+            border: 2px dashed #00f3ff;
+            padding: 5px 20px;
+            border-radius: 15px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .options-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .option-btn {
+            flex: 1;
+            background: linear-gradient(180deg, rgba(0, 100, 255, 0.7), rgba(0, 50, 150, 0.9));
+            border: 2px solid #00f3ff;
+            color: #fff;
+            padding: 16px;
+            border-radius: 20px;
+            font-size: 2.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .option-btn:hover {
+            background: linear-gradient(180deg, #00f3ff, #0055ff);
+            color: #fff;
+            transform: translateY(-4px);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.8);
+        }
+
+        .option-btn.btn-text {
+            font-size: 1.6rem;
+        }
+
+        /* Result Screen UI */
+        #result-screen {
+            display: none;
+            background: rgba(0, 10, 25, 0.95);
+        }
+
+        .result-card {
+            background: rgba(0, 30, 60, 0.9);
+            border: 3px solid #00f3ff;
+            border-radius: 30px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.4);
+            max-width: 480px;
+            width: 85%;
+        }
+
+        .result-score {
+            font-size: 3.8rem;
+            color: #00f3ff;
+            margin: 20px 0;
+            text-shadow: 0 0 20px #00f3ff;
+            font-weight: bold;
+        }
+
+        /* ==========================================
+           ป็อบอัปตอบถูก (ปลา) & ตอบผิด (ฝูง 🥹 เล็กๆ ลอยขึ้น)
+           ========================================== */
+        #correct-popup, #wrong-popup {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+            overflow: hidden;
+        }
+
+        .popup-fish {
+            position: absolute;
+            font-size: 3.5rem;
+            transition: transform 1.2s ease-out, opacity 1.2s ease-out;
+            filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.8));
+        }
+
+        .popup-sad {
+            position: absolute;
+            font-size: 2rem;
+            transition: transform 1.2s ease-out, opacity 1.2s ease-out;
+            filter: drop-shadow(0 0 10px rgba(255, 100, 100, 0.6));
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- โลโก้คนสร้างเกม (แสดงผลทุกหน้า) -->
+        <img src="t.png" id="dev-logo" alt="Developer Logo">
+
+        <!-- Background Layers ล็อคขอบ ซูมสมูท -->
+        <div id="bg-start" class="bg-screen"></div>
+        <div id="bg-play" class="bg-screen"></div>
+        
+        <!-- เลเยอร์ฝูงปลาว่ายน้ำบนพื้นหลัง -->
+        <div id="fish-bg-layer"></div>
+
+        <div class="caustics"></div>
+
+        <!-- Canvas FX -->
+        <canvas id="fx-canvas"></canvas>
+
+        <!-- Audio Control -->
+        <button id="audio-btn" onclick="toggleAudio()">🔊</button>
+
+        <!-- 1. Start Screen -->
+        <div id="start-screen" class="screen">
+            <div class="title-box">
+                <h1>ท่องโลกมหาสมุทร</h1>
+                <h2>ผจญภัยเปรียบเทียบจำนวน &lt; , &gt; , =</h2>
+            </div>
+            <button class="btn-glow" onclick="startGame()">เริ่มผจญภัย</button>
+        </div>
+
+        <!-- 2. Gameplay & Map Nodes Container -->
+        <div id="map-container"></div>
+        <div id="player-diver">🥽</div>
+        <div id="boss-avatar">🦈</div>
+
+        <!-- 3. Interactive Quiz UI -->
+        <div id="quiz-ui">
+            <div class="quiz-header">
+                <span id="stage-label">ด่านที่ 1/10</span>
+                <span id="score-label">คะแนน: 0</span>
+            </div>
+            
+            <div id="question-title" class="question-title">เลือกลูกศรเปรียบเทียบที่ถูกต้อง</div>
+            
+            <div class="question-display">
+                <div id="num-left" class="num-box">100</div>
+                <div id="symbol-target" class="symbol-target">?</div>
+                <div id="num-right" class="num-box">200</div>
+            </div>
+
+            <div id="options-container" class="options-grid"></div>
+        </div>
+
+        <!-- 4. Result Screen -->
+        <div id="result-screen" class="screen">
+            <div class="result-card">
+                <h1 id="result-title">สรุปผลการผจญภัย</h1>
+                <div id="result-score" class="result-score">0 / 10</div>
+                <p id="result-status" style="font-size: 1.3rem; margin-bottom: 25px;"></p>
+                <button class="btn-glow" onclick="resetGame()">เล่นอีกครั้ง</button>
+            </div>
+        </div>
+
+        <!-- Popups ตอบ ถูก / ผิด -->
+        <div id="correct-popup"></div>
+        <div id="wrong-popup"></div>
+    </div>
+
+    <script>
+        /* ==========================================
+           1. QUESTION BANK
+           ========================================== */
+        const MASTER_QUESTION_BANK = [];
+        for (let i = 1; i <= 90; i++) {
+            let num1 = Math.floor(Math.random() * 900) + 100;
+            let num2 = Math.floor(Math.random() * 900) + 100;
+            
+            if (i % 2 === 0) {
+                let op = "=";
+                if (num1 > num2) op = ">";
+                else if (num1 < num2) op = "<";
+
+                MASTER_QUESTION_BANK.push({
+                    type: "fill_symbol",
+                    title: "เลือกเครื่องหมายที่ถูกต้อง",
+                    left: num1,
+                    symbol: "?",
+                    right: num2,
+                    options: [
+                        { text: ">", correct: op === ">" },
+                        { text: "<", correct: op === "<" },
+                        { text: "=", correct: op === "=" }
+                    ]
+                });
+            } else {
+                let symbolOptions = [">", "<", "="];
+                let randomSymbol = symbolOptions[Math.floor(Math.random() * 3)];
+                
+                let isActualCorrect = false;
+                if (randomSymbol === ">" && num1 > num2) isActualCorrect = true;
+                if (randomSymbol === "<" && num1 < num2) isActualCorrect = true;
+                if (randomSymbol === "=" && num1 === num2) isActualCorrect = true;
+
+                MASTER_QUESTION_BANK.push({
+                    type: "true_false",
+                    title: "ประโยคนี้ถูกต้องหรือไม่?",
+                    left: num1,
+                    symbol: randomSymbol,
+                    right: num2,
+                    options: [
+                        { text: "ถูกต้อง", correct: isActualCorrect, isText: true },
+                        { text: "ไม่ถูกต้อง", correct: !isActualCorrect, isText: true }
+                    ]
+                });
+            }
+        }
+
+        const MASTER_BOSS_BANK = [
+            {
+                type: "fill_symbol",
+                title: "🦈 บอสฉลาม: เติมเครื่องหมายที่ถูกต้อง",
+                left: 542,
+                symbol: "?",
+                right: 524,
+                options: [
+                    { text: ">", correct: true },
+                    { text: "<", correct: false },
+                    { text: "=", correct: false }
+                ]
+            },
+            {
+                type: "true_false",
+                title: "🦈 บอสฉลาม: ประโยคนี้ถูกต้องหรือไม่?",
+                left: "(800 + 30 + 5)",
+                symbol: "=",
+                right: 835,
+                options: [
+                    { text: "ถูกต้อง", correct: true, isText: true },
+                    { text: "ไม่ถูกต้อง", correct: false, isText: true }
+                ]
+            },
+            {
+                type: "fill_symbol",
+                title: "🦈 บอสฉลาม: เติมเครื่องหมายที่ถูกต้อง",
+                left: 999,
+                symbol: "?",
+                right: "1,000",
+                options: [
+                    { text: "<", correct: true },
+                    { text: ">", correct: false },
+                    { text: "=", correct: false }
+                ]
+            }
+        ];
+
+        /* ==========================================
+           2. WEB AUDIO API SYSTEM (ดนตรีบรรเลงไพเราะ + SFX)
+           ========================================== */
+        let audioCtx = null;
+        let isMuted = false;
+        let bgMusicTimer = null;
+        let musicStep = 0;
+
+        // ทำนองเพลงบรรเลงใต้น้ำสุดไพเราะ (Melodic Ocean Suite - Pentatonic/Marimba style)
+        const musicMelody = [
+            { note: 523.25, duration: 0.4 }, // C5
+            { note: 659.25, duration: 0.4 }, // E5
+            { note: 783.99, duration: 0.4 }, // G5
+            { note: 987.77, duration: 0.6 }, // B5
+            { note: 880.00, duration: 0.4 }, // A5
+            { note: 783.99, duration: 0.4 }, // G5
+            { note: 659.25, duration: 0.6 }, // E5
+            { note: 587.33, duration: 0.4 }, // D5
+            
+            { note: 523.25, duration: 0.4 }, // C5
+            { note: 587.33, duration: 0.4 }, // D5
+            { note: 659.25, duration: 0.4 }, // E5
+            { note: 783.99, duration: 0.6 }, // G5
+            { note: 659.25, duration: 0.4 }, // E5
+            { note: 587.33, duration: 0.4 }, // D5
+            { note: 523.25, duration: 0.8 }, // C5
+            { note: 392.00, duration: 0.4 }, // G4
+
+            { note: 440.00, duration: 0.4 }, // A4
+            { note: 523.25, duration: 0.4 }, // C5
+            { note: 659.25, duration: 0.4 }, // E5
+            { note: 587.33, duration: 0.6 }, // D5
+            { note: 523.25, duration: 0.4 }, // C5
+            { note: 440.00, duration: 0.4 }, // A4
+            { note: 392.00, duration: 0.6 }, // G4
+            { note: 523.25, duration: 0.8 }  // C5
+        ];
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        /* ระบบเล่นดนตรีบรรเลงวนลูปตลอดทั้งเกม */
+        function startBackgroundMusic() {
+            if (bgMusicTimer || isMuted) return;
+
+            function playNextNote() {
+                if (isMuted || !audioCtx) return;
+
+                const item = musicMelody[musicStep];
+                const now = audioCtx.currentTime;
+
+                // สร้างเสียงบรรเลงแบบนุ่มนวล (Soft Sine Wave / Marimba effect)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(item.note, now);
+
+                // ค่อยๆ ดังและค่อยๆ จางลง (Soft Envelope)
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + item.duration * 0.9);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + item.duration);
+
+                // เพิ่มเสียงคอร์ดเบสเบาๆ คลอตาม (Soft Bass Harmony)
+                if (musicStep % 4 === 0) {
+                    const bassOsc = audioCtx.createOscillator();
+                    const bassGain = audioCtx.createGain();
+                    bassOsc.type = 'triangle';
+                    bassOsc.frequency.setValueAtTime(item.note / 4, now); // คอร์ดเบส 2 ต่ำกว่า 2 อ็อกเทฟ
+                    bassGain.gain.setValueAtTime(0.001, now);
+                    bassGain.gain.linearRampToValueAtTime(0.03, now + 0.1);
+                    bassGain.gain.exponentialRampToValueAtTime(0.001, now + item.duration * 1.5);
+
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(audioCtx.destination);
+                    bassOsc.start(now);
+                    bassOsc.stop(now + item.duration * 1.5);
+                }
+
+                musicStep = (musicStep + 1) % musicMelody.length;
+                bgMusicTimer = setTimeout(playNextNote, item.duration * 1000);
+            }
+
+            playNextNote();
+        }
+
+        function stopBackgroundMusic() {
+            if (bgMusicTimer) {
+                clearTimeout(bgMusicTimer);
+                bgMusicTimer = null;
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted || !audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            
+            if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now); osc.stop(now + 0.05);
+            } else if (type === 'correct') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    g.gain.setValueAtTime(0.2, now + idx * 0.08);
+                    g.gain.linearRampToValueAtTime(0.01, now + idx * 0.08 + 0.2);
+                    o.start(now + idx * 0.08); o.stop(now + idx * 0.08 + 0.2);
+                });
+            } else if (type === 'wrong') {
+                const bufferSize = audioCtx.sampleRate * 0.6;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(250, now);
+                filter.frequency.linearRampToValueAtTime(100, now + 0.6);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                noise.start(now);
+                noise.stop(now + 0.6);
+            } else if (type === 'victory') {
+                const notes = [440, 554.37, 659.25, 880];
+                notes.forEach((freq, idx) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(freq, now + idx * 0.15);
+                    g.gain.setValueAtTime(0.25, now + idx * 0.15);
+                    g.gain.linearRampToValueAtTime(0.01, now + idx * 0.15 + 0.3);
+                    o.start(now + idx * 0.15); o.stop(now + idx * 0.15 + 0.3);
+                });
+            }
+        }
+
+        function toggleAudio() {
+            isMuted = !isMuted;
+            document.getElementById('audio-btn').innerText = isMuted ? '🔇' : '🔊';
+            if (!isMuted) {
+                initAudio();
+                startBackgroundMusic();
+            } else {
+                stopBackgroundMusic();
+            }
+        }
+
+        // เริ่มเล่นเพลงอัตโนมัติเมื่อผู้ใช้มีการสัมผัส/คลิกหน้าจอ
+        const enableAudioOnUserInteraction = () => {
+            initAudio();
+            startBackgroundMusic();
+            window.removeEventListener('click', enableAudioOnUserInteraction);
+            window.removeEventListener('keydown', enableAudioOnUserInteraction);
+            window.removeEventListener('touchstart', enableAudioOnUserInteraction);
+        };
+
+        window.addEventListener('click', enableAudioOnUserInteraction);
+        window.addEventListener('keydown', enableAudioOnUserInteraction);
+        window.addEventListener('touchstart', enableAudioOnUserInteraction);
+
+        /* ==========================================
+           3. BACKGROUND ALIVE FISHES SYSTEM
+           ========================================== */
+        const bgFishTypes = ['🐟', '🐠', '🐡', '🦭', '🐙'];
+
+        function spawnBackgroundFish() {
+            const container = document.getElementById('fish-bg-layer');
+            const fish = document.createElement('div');
+            fish.className = 'bg-fish';
+            
+            const isLeftToRight = Math.random() > 0.5;
+            const fishIcon = bgFishTypes[Math.floor(Math.random() * bgFishTypes.length)];
+            fish.innerText = fishIcon;
+
+            const topPos = Math.random() * 85 + 5;
+            const duration = Math.random() * 8 + 10;
+
+            fish.style.top = `${topPos}%`;
+
+            if (isLeftToRight) {
+                fish.style.left = '-60px';
+                fish.style.transform = 'scaleX(-1)';
+                fish.animate([
+                    { left: '-60px' },
+                    { left: '105vw' }
+                ], { duration: duration * 1000, easing: 'linear' });
+            } else {
+                fish.style.left = '105vw';
+                fish.style.transform = 'scaleX(1)';
+                fish.animate([
+                    { left: '105vw' },
+                    { left: '-60px' }
+                ], { duration: duration * 1000, easing: 'linear' });
+            }
+
+            container.appendChild(fish);
+
+            setTimeout(() => {
+                fish.remove();
+            }, duration * 1000);
+        }
+
+        setInterval(spawnBackgroundFish, 2500);
+        for(let i=0; i<4; i++) spawnBackgroundFish();
+
+        /* ==========================================
+           4. GAME LOGIC & MAP SYSTEM
+           ========================================== */
+        let currentStage = 0;
+        let score = 0;
+        let activeQuestions = [];
+        let mapNodes = [];
+
+        const NODE_POSITIONS = [
+            { x: 10, y: 80 }, { x: 22, y: 65 }, { x: 30, y: 82 },
+            { x: 42, y: 60 }, { x: 50, y: 75 }, { x: 62, y: 55 },
+            { x: 70, y: 78 }, { x: 80, y: 50 }, { x: 85, y: 70 },
+            { x: 90, y: 30 }
+        ];
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function initMapUI() {
+            const container = document.getElementById('map-container');
+            container.innerHTML = '';
+            mapNodes = [];
+
+            NODE_POSITIONS.forEach((pos, idx) => {
+                const node = document.createElement('div');
+                node.className = `map-node ${idx === 9 ? 'boss' : ''}`;
+                node.style.left = `${pos.x}%`;
+                node.style.top = `${pos.y}%`;
+                node.innerText = idx === 9 ? '👑' : (idx + 1);
+                container.appendChild(node);
+                mapNodes.push(node);
+            });
+
+            resizeCanvas();
+        }
+
+        function startGame() {
+            initAudio();
+            startBackgroundMusic();
+            playSound('click');
+
+            document.getElementById('start-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('start-screen').style.display = 'none';
+                document.getElementById('bg-start').style.opacity = '0';
+                document.getElementById('bg-play').style.opacity = '1';
+            }, 500);
+
+            const shuffledNormal = shuffleArray(MASTER_QUESTION_BANK).slice(0, 9);
+            const shuffledBoss = shuffleArray(MASTER_BOSS_BANK).slice(0, 1);
+            activeQuestions = [...shuffledNormal, ...shuffledBoss];
+
+            currentStage = 0;
+            score = 0;
+            initMapUI();
+            
+            movePlayerToStage(0);
+            openQuizUI();
+        }
+
+        function movePlayerToStage(stageIdx) {
+            const diver = document.getElementById('player-diver');
+            const pos = NODE_POSITIONS[stageIdx];
+            diver.style.left = `${pos.x}%`;
+            diver.style.top = `${pos.y}%`;
+
+            mapNodes.forEach((node, idx) => {
+                node.classList.remove('active');
+                if (idx === stageIdx) node.classList.add('active');
+            });
+
+            const bossAvatar = document.getElementById('boss-avatar');
+            if (stageIdx === 9) {
+                bossAvatar.style.display = 'block';
+            } else {
+                bossAvatar.style.display = 'none';
+            }
+        }
+
+        function openQuizUI() {
+            const qData = activeQuestions[currentStage];
+            document.getElementById('stage-label').innerText = `ด่านที่ ${currentStage + 1}/10 ${currentStage === 9 ? '(บอสฉลาม)' : ''}`;
+            document.getElementById('score-label').innerText = `คะแนน: ${score}`;
+            
+            document.getElementById('question-title').innerText = qData.title;
+            document.getElementById('num-left').innerText = qData.left;
+            document.getElementById('symbol-target').innerText = qData.symbol;
+            document.getElementById('num-right').innerText = qData.right;
+
+            const shuffledOpts = shuffleArray(qData.options);
+            const optsContainer = document.getElementById('options-container');
+            optsContainer.innerHTML = '';
+
+            shuffledOpts.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn ${opt.isText ? 'btn-text' : ''}`;
+                btn.innerText = opt.text;
+                btn.onclick = () => handleAnswer(opt.correct);
+                optsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quiz-ui').style.display = 'block';
+        }
+
+        function triggerCorrectPopup() {
+            const popup = document.getElementById('correct-popup');
+            popup.innerHTML = '';
+            popup.style.display = 'block';
+
+            const fishIcons = ['🐠', '🐟', '🐡', '🐬'];
+            for (let i = 0; i < 25; i++) {
+                const f = document.createElement('div');
+                f.className = 'popup-fish';
+                f.innerText = fishIcons[Math.floor(Math.random() * fishIcons.length)];
+                
+                const startX = Math.random() * 100;
+                const startY = Math.random() * 100;
+                f.style.left = `${startX}%`;
+                f.style.top = `${startY}%`;
+
+                popup.appendChild(f);
+
+                setTimeout(() => {
+                    f.style.transform = `translate(${(Math.random() - 0.5) * 300}px, ${(Math.random() - 0.5) * 300}px) scale(1.5)`;
+                    f.style.opacity = '0';
+                }, 50);
+            }
+
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 1200);
+        }
+
+        /* ป็อบอัปตอบผิด: ฝูง 🥹 ตัวเล็กๆ ลอยขึ้น */
+        function triggerWrongPopup() {
+            const popup = document.getElementById('wrong-popup');
+            popup.innerHTML = '';
+            popup.style.display = 'block';
+
+            for (let i = 0; i < 25; i++) {
+                const sad = document.createElement('div');
+                sad.className = 'popup-sad';
+                sad.innerText = '🥹';
+                
+                const startX = Math.random() * 90 + 5;
+                const startY = Math.random() * 60 + 30;
+                sad.style.left = `${startX}%`;
+                sad.style.top = `${startY}%`;
+
+                popup.appendChild(sad);
+
+                setTimeout(() => {
+                    const moveY = -(Math.random() * 150 + 100);
+                    const moveX = (Math.random() - 0.5) * 100;
+                    sad.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.3)`;
+                    sad.style.opacity = '0';
+                }, 50);
+            }
+
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 1200);
+        }
+
+        function handleAnswer(isCorrect) {
+            const currentNode = mapNodes[currentStage];
+            
+            if (isCorrect) {
+                playSound('correct');
+                triggerCorrectPopup();
+                score++;
+                currentNode.innerText = '✓';
+                currentNode.className = `map-node node-correct ${currentStage === 9 ? 'boss' : ''}`;
+            } else {
+                playSound('wrong');
+                triggerWrongPopup();
+                currentNode.innerText = '✗';
+                currentNode.className = `map-node node-wrong ${currentStage === 9 ? 'boss' : ''}`;
+            }
+
+            document.getElementById('quiz-ui').style.display = 'none';
+            currentStage++;
+
+            if (currentStage < 10) {
+                setTimeout(() => {
+                    movePlayerToStage(currentStage);
+                    setTimeout(() => {
+                        openQuizUI();
+                    }, 800);
+                }, 1000);
+            } else {
+                setTimeout(() => {
+                    showResult();
+                }, 1200);
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quiz-ui').style.display = 'none';
+
+            const resultScreen = document.getElementById('result-screen');
+            resultScreen.style.display = 'flex';
+
+            const scoreText = document.getElementById('result-score');
+            const statusText = document.getElementById('result-status');
+            const titleText = document.getElementById('result-title');
+
+            scoreText.innerText = `${score} / 10`;
+
+            if (score >= 7) {
+                playSound('victory');
+                titleText.innerText = "🎉 ชัยชนะใต้มหาสมุทร! 🎉";
+                statusText.innerText = "ยินดีด้วย! คุณผ่านเกณฑ์ผจญภัยและพิชิตบอสสำเร็จ!";
+                statusText.style.color = "#00ff88";
+                startFireworks();
+            } else {
+                titleText.innerText = "🌊 การผจญภัยยังไม่สิ้นสุด";
+                statusText.innerText = "คุณได้ไม่ถึง 7 คะแนน พยายามใหม่อีกครั้งนะ!";
+                statusText.style.color = "#ff5555";
+            }
+        }
+
+        function resetGame() {
+            playSound('click');
+            stopFireworks();
+            document.getElementById('result-screen').style.display = 'none';
+            document.getElementById('start-screen').style.display = 'flex';
+            document.getElementById('start-screen').style.opacity = '1';
+            document.getElementById('bg-start').style.opacity = '1';
+            document.getElementById('bg-play').style.opacity = '0';
+        }
+
+        /* ==========================================
+           5. CANVAS & GRAPHICS
+           ========================================== */
+        const canvas = document.getElementById('fx-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawMapPaths();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawMapPaths() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (mapNodes.length === 0 || document.getElementById('bg-play').style.opacity === '0') return;
+
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.6)';
+            ctx.setLineDash([8, 8]);
+
+            NODE_POSITIONS.forEach((pos, idx) => {
+                const x = (pos.x / 100) * canvas.width;
+                const y = (pos.y / 100) * canvas.height;
+                if (idx === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        /* Fireworks Effect */
+        let fireworks = [];
+        let fireworkAnimationId = null;
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 3 + 2;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.alpha = 1;
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.015;
+            }
+        }
+
+        function startFireworks() {
+            fireworks = [];
+            const colors = ['#00f3ff', '#00ff88', '#ff0055', '#ffcc00', '#ffffff'];
+            
+            const launch = () => {
+                if (document.getElementById('result-screen').style.display !== 'flex') return;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * (canvas.height * 0.5);
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 35; i++) {
+                    fireworks.push(new Particle(x, y, color));
+                }
+            };
+
+            setInterval(launch, 400);
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                fireworks.forEach((p, idx) => {
+                    p.update();
+                    p.draw();
+                    if (p.alpha <= 0) fireworks.splice(idx, 1);
+                });
+                fireworkAnimationId = requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function stopFireworks() {
+            if (fireworkAnimationId) cancelAnimationFrame(fireworkAnimationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.onload = resizeCanvas;
+    </script>
+</body>
+</html>
